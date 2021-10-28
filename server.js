@@ -106,30 +106,20 @@ const init = async () => {
     });
     
     // Search for a movie
-    server.route({
-        method: 'GET',
-        path: '/search',
-        handler: async(req, h) => {
-            const query = req.query.term;
-            const results = await req.mongo.db.collection("movies").aggregate([
-                {
-                    $searchBeta: {
-                        "search": {
-                            "query": query,
-                            "path":"title"
-                        }
-                    }
-                },
-                {
-                    $project : {title:1, plot: 1}
-                },
-                {
-                    $limit: 10
-                }
-                ]).toArray()
-            return results;
-        }
-    });
+// Search for a movie
+server.route({
+    method: 'GET',
+    path: '/search',
+    handler: async(req, h) => {
+        const query = req.query.term;
+        const offset = Number(req.query.offset) || 0;
+        const results = await req.mongo.db.collection('movies').find({ $text: { $search: query } } ).sort({metacritic:-1}).skip(offset).limit(20).toArray();
+
+
+
+        return results;
+    }
+});
 
     // // Transform non-boom errors into boom ones
     // server.ext('onPreResponse', (request, reply) => {
@@ -155,6 +145,17 @@ const init = async () => {
     //       return Boom.internal('An internal server error', error);
     //     }
     //   }
+
+
+
+    server.events.on('log', (event, tags) => {
+
+        if (tags.error) {
+            console.log(`Server error: ${event.error ? event.error.message : 'unknown'}`);
+        }
+    });
+
+
     await server.start();
     console.log('Server running on %s', server.info.uri);
 }
